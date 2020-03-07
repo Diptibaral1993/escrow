@@ -22,16 +22,22 @@ contract Escrow {
         start = now; //now is an alias for block.timestamp, not really "now"
     }
     
-    function startTrade(address _buyer, address _seller) public{
+    function startEscrowSigner(address _buyer, address _seller, uint256 _amount) public returns(bool){
         
         require(Deal[_buyer]!=_seller,"Pending");
+        require(msg.sender==_buyer,"Cannot Start");
+        
+        _amount=_amount*(10**18);
+        buyerBalance[_buyer] += _amount;
+        
         Deal[_buyer]=_seller;
+        return true;
     }
     
     
    
     
-    function accept(address payable _buyer, address payable _seller) public {
+    function releaseEscrowSigner(address payable _buyer, address payable _seller) public returns(bool){
         
         require(Deal[_buyer]==_seller,"Deal Not Exist");
         if (msg.sender == _buyer){
@@ -42,17 +48,9 @@ contract Escrow {
         if (buyer[_buyer] && seller[_seller]){
             payBalance(_buyer,_seller);
         } 
-        // else if (buyer[_buyer] && !seller[_seller]) {
-        
-        //     // if (_buyer.send(buyerBalance[_buyer])) {
-        //     //     buyerBalance[_buyer] = 0;
-        //     // }
-        // }
+        return true;
     }
     
-    function refund(address payable _buyer) public{
-        _buyer.transfer(buyerBalance[_buyer]);
-    }
     
     function () payable external{}
     
@@ -93,6 +91,10 @@ contract Escrow {
                 buyerBalance[_buyer] = 0;
             }
         }
+    }
+    
+    function collectUsdt() public{
+        
     }
     
     function kill(address payable _buyer) public  {
