@@ -1,4 +1,6 @@
-pragma solidity ^0.4.11;contract Escrow {
+pragma solidity ^0.5.16;
+
+contract Escrow {
     
     mapping (address => uint256) public buyerBalance;
     //uint balance;
@@ -11,7 +13,9 @@ pragma solidity ^0.4.11;contract Escrow {
     mapping(address => bool) public _cbuyer;
     mapping(address => bool) public _cseller;
     
-    address private escrow;
+    mapping (address => uint256) public balanceOf;
+    
+    address payable escrow;
     uint private start;
     constructor() public {
         escrow = msg.sender;
@@ -23,9 +27,11 @@ pragma solidity ^0.4.11;contract Escrow {
         require(Deal[_buyer]!=_seller,"Pending");
         Deal[_buyer]=_seller;
     }
+    
+    
    
     
-    function accept(address _buyer, address _seller) public {
+    function accept(address payable _buyer, address payable _seller) public {
         
         require(Deal[_buyer]==_seller,"Deal Not Exist");
         if (msg.sender == _buyer){
@@ -35,17 +41,27 @@ pragma solidity ^0.4.11;contract Escrow {
         }
         if (buyer[_buyer] && seller[_seller]){
             payBalance(_buyer,_seller);
-        } else if (buyer[_buyer] && !seller[_seller] && now > start + 30 days) {
-            // Freeze 30 days before release to buyer. The customer has to remember to call this method after freeze period.
-            selfdestruct(_buyer);
-        }
+        } 
+        // else if (buyer[_buyer] && !seller[_seller]) {
+        
+        //     // if (_buyer.send(buyerBalance[_buyer])) {
+        //     //     buyerBalance[_buyer] = 0;
+        //     // }
+        // }
     }
     
-    function payBalance(address _buyer, address _seller) private {
+    function refund(address payable _buyer) public{
+        _buyer.transfer(buyerBalance[_buyer]);
+    }
+    
+    function () payable external{}
+    
+    function payBalance(address _buyer, address payable _seller) public payable{
         
         require(Deal[_buyer]==_seller,"Not Possible");
         // we are sending ourselves (contract creator) a fee
         escrow.transfer(address(this).balance / 100);
+        
         // send seller the balance
         if (_seller.send(address(this).balance)) {
             buyerBalance[_buyer] = 0;
@@ -54,13 +70,6 @@ pragma solidity ^0.4.11;contract Escrow {
         }
     }
     
-    // function deposit(address _buyer) public payable {
-        
-    //     require(Deal[_buyer]!=address(0),"Address Doesnot Exist");
-    //     if (msg.sender == _buyer) {
-    //         buyerBalance[_buyer] += msg.value;
-    //     }
-    // }
     
     function deposit(address _buyer) public payable {
         if (msg.sender == _buyer) {
@@ -68,7 +77,7 @@ pragma solidity ^0.4.11;contract Escrow {
         }
     }
     
-    function cancel(address _buyer, address _seller) public {
+    function cancel(address payable _buyer, address _seller) public {
         
         require(Deal[_buyer]==_seller,"Deal Not Exist");
          
@@ -79,15 +88,21 @@ pragma solidity ^0.4.11;contract Escrow {
         }
         // if both buyer and seller would like to cancel, money is returned to buyer 
         if (_cbuyer[_buyer] && _cseller[_seller]){
-            selfdestruct(_buyer);
+            
+            if (_buyer.send(buyerBalance[_buyer])) {
+                buyerBalance[_buyer] = 0;
+            }
         }
     }
     
-    function kill(address _buyer) public  {
+    function kill(address payable _buyer) public  {
         
         require(Deal[_buyer]!=address(0),"Address Doesnot Exist");
         if (msg.sender == escrow) {
-            selfdestruct(_buyer);
+            
+            if (_buyer.send(buyerBalance[_buyer])) {
+                buyerBalance[_buyer] = 0;
+            }
         }
     }
 }
